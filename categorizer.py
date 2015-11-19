@@ -43,7 +43,7 @@ class Categorizer:
 
 
     def _knn(self,word,c_embeddings,c_id_word):
-	print c_embeddings
+
         word = self._normalize(word, self.word_id)
         if not word:
             return []
@@ -53,23 +53,23 @@ class Categorizer:
 	words=[]
         for i, (word, distance) in enumerate(izip(neighbors, distances)):
             words.append(word)
-            print i, '\t', word, '\t\t', distance
+
 	return words
 
     def _add_germanet_categories(self,word):
 	gn = load_germanet()
 	cats=[]	
 	hp = gn.synset(word+'.n.1').hypernym_paths
-	print hp
+
 	for h in hp: 
-	    print h[-4:-1]
+
 	    for s in h[-4:-1]:		
 		cats.append(str(s).split('(')[1].split('.')[0])
 	cats = list(set(cats))
 	return cats
 
     def _map_to_category(self,words):
-        print words
+
 	categories =[]
 	#word was OOV
 	if words ==[]:
@@ -77,7 +77,6 @@ class Categorizer:
 	#words found	
 	else:
             for word in words:
-		print word
                 for key in self.cat_dict:
 		    if word==key:
 			categories.append(word)
@@ -102,7 +101,7 @@ class Categorizer:
 	
 	if not self.hobj.spell(word):
 		word = self.hobj.suggest(word)[0]
-	print word
+
 	return word	
 
     def _cat_embeddings(self):
@@ -158,26 +157,41 @@ class Categorizer:
 	distances = (((c_emb - e) ** 2).sum(axis=1) ** 0.5)
 
 	sorted_distances = sorted(enumerate(distances), key=itemgetter(1))
-	print sorted_distances
+
 	return zip(*sorted_distances[:self.k])
+
+    def _fallback_cat(self,word):
+        inf=open('word_data_base.json','r')
+        cat_dict = json.load(inf)
+        inf.close()
+	for cat in cat_dict:
+	    cat_dict[cat].append(word)
+        with open('word_data_base.json', 'w') as fp:
+            json.dump(cat_dict, fp)
+
 
     def categorize_word(self,word):
 	inf=open('word_data_base.json','r')
         cat_dict = json.load(inf)
 	inf.close()
-        cats = self._collect_category(word)
-        for cat in cats:
-            if cat in cat_dict:
-                if word not in cat_dict[cat]:
-                    cat_dict[cat].append(word)
-            elif cat not in cat_dict:
-                cat_dict[cat] =[word]
-        with open('word_data_base.json', 'w') as fp:
-            json.dump(cat_dict, fp)
+	try:
+            cats = self._collect_category(word)
+            for cat in cats:
+                if cat in cat_dict:
+                    if word not in cat_dict[cat]:
+                        cat_dict[cat].append(word)
+                elif cat not in cat_dict:
+                    cat_dict[cat] =[word]
+            with open('word_data_base.json', 'w') as fp:
+                json.dump(cat_dict, fp)
+	except:
+		_fallback_cat(word)
 
     def return_all_elements_of_category(self,cat):
-	cat_dict=json.load(open('word_data_base.json'))
+        cat_dict=json.load(open('word_data_base.json'))
 	return cat_dict[cat]
+
+  
 
     def delete_word(self,word):
 	inf=open('word_data_base.json','r')
